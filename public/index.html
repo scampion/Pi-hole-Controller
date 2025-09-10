@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pi-hole Controller</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Login Form -->
+        <div id="login-container">
+            <h1>Pi-hole Login</h1>
+            <form id="login-form">
+                <input type="password" id="password-input" placeholder="Enter Pi-hole Password" required>
+                <button type="submit" id="login-btn">Login</button>
+                <div id="login-error" class="error-message"></div>
+            </form>
+        </div>
+
+        <!-- Main Controls (Initially Hidden) -->
+        <div id="main-container" class="hidden">
+            <div class="header">
+                <h1>Pi-hole Controller</h1>
+                <button id="logout-btn">Log Out</button>
+            </div>
+            
+            <div id="loading">Loading domains...</div>
+
+            <div id="controls" class="hidden">
+                <div class="section">
+                    <h2>1. Select a Tag to Unblock</h2>
+                    <div id="tags-container"></div>
+                </div>
+
+                <div class="section">
+                    <h2>2. Select Duration</h2>
+                    <div id="durations-container">
+                        <button class="duration-btn" data-duration="5">5 minutes</button>
+                        <button class="duration-btn" data-duration="10">10 minutes</button>
+                        <button class="duration-btn" data-duration="20">20 minutes</button>
+                        <button class="duration-btn" data-duration="45">45 minutes</button>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <button id="unblock-btn" disabled>Unblock</button>
+                </div>
+            </div>
+
+            <div id="status-message"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
