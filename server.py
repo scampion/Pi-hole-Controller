@@ -59,12 +59,26 @@ def make_authenticated_request(method, url, **kwargs):
     headers = kwargs.get("headers", {})
     headers["X-FTL-SID"] = sid
     kwargs["headers"] = headers
+    print(f"Making {method} request to {url} with headers {headers} and kwargs {kwargs}")
     return requests.request(method, url, **kwargs)
 
 # --- Domain Re-enabling Logic ---
-def re_enable_domain(domain_id):
+def re_enable_domain(domain_id, kind):
+    """
+    Réactive un domaine ou un chemin de domaine sur Pi-hole.
+
+    `domain_id` peut être :
+      - un identifiant numérique (ex. "123")
+      - un chemin comme "allow/exact/example.com" (construit par disable_domain)
+    """
+    if not domain_id:
+        print("No domain specified to re-enable.", file=sys.stderr)
+        return
     try:
-        url = f"{PIHOLE_URL}/api/domains/{domain_id}"
+        base = PIHOLE_URL.rstrip('/')
+        target = "/".join(['allow', kind, str(domain_id)])
+        url = f"{base}/api/domains/{target}"
+        #url = f"{base}/api/domains/{domain_id}"
         response = make_authenticated_request("PATCH", url, json={"enabled": True})
         response.raise_for_status()
         print(f"Domain {domain_id} has been re-enabled.")
@@ -108,20 +122,47 @@ def get_domains():
 @app.route('/api/disable-domain', methods=['POST'])
 @login_required
 def disable_domain():
-    data = request.get_json()
-    domain_id = data.get('domainId')
-    duration_minutes = data.get('duration')
-    if not domain_id or not duration_minutes:
-        return jsonify({"error": "Domain ID and duration are required."}), 400
+    data = request.get_json(silent=True) or {}
+    domain_id = data.get('domainId') or data.get('id')
+    domain = data.get('domain')
+    type_ = data.get('type', 'deny')
+    kind = data.get('kind')
+    duration = data.get('duration')
+    comment = data.get('comment')
+    print("DATA", data)
+
+    if not duration:
+        return jsonify({"error": "Duration is required."}), 400
+
     try:
-        duration_minutes = int(duration_minutes)
-        url = f"{PIHOLE_URL}/api/domains/{domain_id}"
-        response = make_authenticated_request("PATCH", url, json={"enabled": False})
+        duration_minutes = int(duration)
+        if duration_minutes <= 0:
+            return jsonify({"error": "Duration must be a positive integer."}), 400
+    except (TypeError, ValueError):
+        return jsonify({"error": "Invalid duration value."}), 400
+
+    if not domain_id and not domain:
+        return jsonify({"error": "Domain ID or domain name is required."}), 400
+
+    try:
+
+        base = PIHOLE_URL.rstrip('/')
+        # encode domain with url encoding
+        #domain = requests.utils.quote(domain) if domain else str(domain_id)
+        target = "/".join([type_, kind, domain])
+        print("TARGET", target)
+        url = f"{base}/api/domains/{target}"
+        print(url)
+        response = make_authenticated_request("PUT", url, json={"enabled": False, "comment": comment})
+        print(response.status_code, response.text)
         response.raise_for_status()
-        print(f"Domain {domain_id} disabled for {duration_minutes} minutes.")
-        timer = Timer(duration_minutes * 60, re_enable_domain, args=[domain_id])
+
+        print(f"Domain {target} disabled for {duration_minutes} minutes.")
+        timer = Timer(duration_minutes * 60, re_enable_domain, args=[domain_id, kind])
+        timer.daemon = True
         timer.start()
-        return jsonify({"message": f"Domain {domain_id} disabled for {duration_minutes} minutes."})
+
+        return jsonify({"message": f"Domain {target} disabled for {duration_minutes} minutes."})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

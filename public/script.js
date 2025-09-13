@@ -100,27 +100,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function displayTags(domains) {
-        tagsContainer.innerHTML = '';
-        const uniqueTags = {};
-        domains.forEach(domain => {
-            const tags = domain.comment.match(/#\w+/g);
-            if (tags) {
-                tags.forEach(tag => {
-                    if (!uniqueTags[tag]) uniqueTags[tag] = [];
-                    uniqueTags[tag].push(domain.id);
-                });
-            }
-        });
-        for (const tag in uniqueTags) {
-            const btn = document.createElement('button');
-            btn.className = 'tag-btn';
-            btn.textContent = tag;
-            btn.dataset.domainIds = JSON.stringify(uniqueTags[tag]);
-            btn.addEventListener('click', () => selectTag(btn));
-            tagsContainer.appendChild(btn);
+function displayTags(domains) {
+    tagsContainer.innerHTML = '';
+    const uniqueTags = {};
+    console.log(domains);
+    domains.forEach(domain => {
+        const tags = domain.comment.match(/#\w+/g);
+        if (tags) {
+            tags.forEach(tag => {
+                if (!uniqueTags[tag]) uniqueTags[tag] = [];
+                uniqueTags[tag].push({ id: domain.id, domain: domain.domain, comment: domain.comment, kind: domain.kind || domain.type || null });
+            });
         }
+    });
+    for (const tag in uniqueTags) {
+        const btn = document.createElement('button');
+        btn.className = 'tag-btn';
+        btn.textContent = tag;
+        btn.dataset.domainIds = JSON.stringify(uniqueTags[tag]);
+        btn.addEventListener('click', () => selectTag(btn));
+        tagsContainer.appendChild(btn);
     }
+}
 
     function selectTag(selectedBtn) {
         document.querySelectorAll('.tag-btn').forEach(btn => btn.classList.remove('selected'));
@@ -149,15 +150,16 @@ document.addEventListener('DOMContentLoaded', () => {
         unblockBtn.textContent = 'Unblocking...';
         statusMessage.textContent = '';
 
-        const domainIdsToDisable = JSON.parse(selectedDomainIds);
-        const promises = domainIdsToDisable.map(domainId =>
-            fetch('/api/disable-domain', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ domainId, duration: selectedDuration })
-            }).then(res => res.ok ? res.json() : res.json().then(err => Promise.reject(err)))
-        );
 
+const domainObjsToDisable = JSON.parse(selectedDomainIds);
+console.log('Domains to disable:', domainObjsToDisable);
+const promises = domainObjsToDisable.map(domainObj =>
+    fetch('/api/disable-domain', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ domainId: domainObj.id, comment: domainObj.comment, domain: domainObj.domain , kind: domainObj.kind, duration: selectedDuration })
+    }).then(res => res.ok ? res.json() : res.json().then(err => Promise.reject(err)))
+);
         try {
             await Promise.all(promises);
             const selectedTag = document.querySelector('.tag-btn.selected').textContent;
